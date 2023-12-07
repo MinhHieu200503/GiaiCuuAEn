@@ -1,43 +1,56 @@
-// Để cập nhật thông tin lên API, bạn có thể sử dụng thư viện axios hoặc các phương thức khác để thực hiện các yêu cầu HTTP. Dưới đây là một ví dụ cách sử dụng Redux Toolkit và Axios để tạo nút "Update" và cập nhật thông tin lên API.
+// Để thực hiện việc cập nhật thông tin từ object state lên API đã tạo, bạn cần sử dụng thư viện Axios để thực hiện các HTTP requests. Dưới đây là một ví dụ về cách có thể triển khai tính năng cập nhật thông tin từ màn hình Screen_02 lên API:
 
-// Cài đặt thư viện Axios:
+// Cài đặt Axios:
+
 // bash
 // Copy code
 //      npm install axios
-// Sửa đổi file userSlice.js trong thư mục redux/slices:
-// javascript
+// Cập nhật userSlice.ts:
+// Thêm một action để thực hiện cập nhật thông tin người dùng lên API.
+
+// typescript
 // Copy code
-// redux/slices/userSlice.js
-import { createSlice } from '@reduxjs/toolkit';
+// src/redux/slices/userSlice.ts
+import { createSlice, PayloadAction } from '@reduxjs/toolkit';
 import axios from 'axios';
+
+interface User {
+    id: number;
+    password: string;
+    todos: string[];
+}
+
+const initialState: User = {
+    id: 0,
+    password: '',
+    todos: [],
+};
 
 const userSlice = createSlice({
     name: 'user',
-    initialState: { id: 0, password: '', todos: [] },
+    initialState,
     reducers: {
-        setUser: (state, action) => {
+        setUser: (state, action: PayloadAction<User>) => {
             return action.payload;
         },
-        addTodo: (state, action) => {
+        addTodo: (state, action: PayloadAction<string>) => {
             state.todos.push(action.payload);
         },
-        deleteTodo: (state, action) => {
-            state.todos = state.todos.filter((todo) => todo !== action.payload);
+        deleteTodo: (state, action: PayloadAction<number>) => {
+            state.todos.splice(action.payload, 1);
         },
-        updateUserInfo: async (state, action) => {
-            try {
-                const response = await axios.put(
-                    `https://6145c71638339400175fc557.mockapi.io/users/${state.id}`,
-                    {
-                        password: state.password,
-                        todos: state.todos,
-                    }
-                );
+        updateUserInfo: (state, action: PayloadAction<User>) => {
+            // Update state
+            state.id = action.payload.id;
+            state.password = action.payload.password;
+            state.todos = action.payload.todos;
 
-                console.log('Update success:', response.data);
-            } catch (error) {
-                console.error('Error during update:', error);
-            }
+            // Update API
+            axios.put(`https://api.example.com/users/${action.payload.id}`, {
+                id: action.payload.id,
+                password: action.payload.password,
+                todos: action.payload.todos,
+            });
         },
     },
 });
@@ -45,35 +58,36 @@ const userSlice = createSlice({
 export const { setUser, addTodo, deleteTodo, updateUserInfo } =
     userSlice.actions;
 export default userSlice.reducer;
-// Sửa đổi file Screen_02.js để thêm nút "Update":
-// javascript
-// Copy code
-// Screen_02.js
-import React, { useState } from 'react';
-import { View, Text, FlatList, TextInput, Button, Alert } from 'react-native';
-import { useSelector, useDispatch } from 'react-redux';
-import { addTodo, deleteTodo, updateUserInfo } from './redux/slices/userSlice';
+// Cập nhật Screen_02.tsx:
+// Thêm button "Update" và sử dụng action mới tạo để cập nhật thông tin lên API.
 
-const Screen_02 = () => {
-    const user = useSelector((state) => state.user);
+// tsx
+// Copy code
+// src/screens/Screen_02.tsx
+import React, { useState } from 'react';
+import { View, Text, FlatList, TextInput, Button } from 'react-native';
+import { useDispatch, useSelector } from 'react-redux';
+import { addTodo, deleteTodo, updateUserInfo } from '../redux/slices/userSlice';
+import { RootState } from '../redux/store';
+
+const Screen_02: React.FC = () => {
     const dispatch = useDispatch();
+    const user = useSelector((state: RootState) => state.user);
     const [newTodo, setNewTodo] = useState('');
 
     const handleAddTodo = () => {
         if (newTodo.trim() !== '') {
             dispatch(addTodo(newTodo));
             setNewTodo('');
-        } else {
-            Alert.alert('Error', 'Please enter a valid todo.');
         }
     };
 
-    const handleDeleteTodo = (todo) => {
-        dispatch(deleteTodo(todo));
+    const handleDeleteTodo = (index: number) => {
+        dispatch(deleteTodo(index));
     };
 
     const handleUpdateUserInfo = () => {
-        dispatch(updateUserInfo());
+        dispatch(updateUserInfo(user));
     };
 
     return (
@@ -84,12 +98,12 @@ const Screen_02 = () => {
             <FlatList
                 data={user.todos}
                 keyExtractor={(item, index) => index.toString()}
-                renderItem={({ item }) => (
+                renderItem={({ item, index }) => (
                     <View>
                         <Text>{item}</Text>
                         <Button
                             title="Delete"
-                            onPress={() => handleDeleteTodo(item)}
+                            onPress={() => handleDeleteTodo(index)}
                         />
                     </View>
                 )}
@@ -106,3 +120,4 @@ const Screen_02 = () => {
 };
 
 export default Screen_02;
+// Lưu ý rằng trong thực tế, bạn cần thay thế URL https://api.example.com/users/${action.payload.id} bằng URL thực tế của API của bạn. Đồng thời, bạn cũng có thể thêm xử lý lỗi và feedback cho người dùng khi thực hiện cập nhật.
