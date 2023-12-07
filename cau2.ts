@@ -1,199 +1,193 @@
-// Dưới đây là một ví dụ cách thiết kế màn hình Screen_02 và thực hiện các yêu cầu bạn đã nêu, sử dụng React Native Expo và Redux Toolkit:
 
-// Cài đặt Redux Toolkit:
+// Dưới đây là một ví dụ cụ thể về cách sử dụng TypeScript, Redux Toolkit và React Native Expo để thiết kế màn hình Screen_02 và thực hiện các yêu cầu của bạn.
+
+// Cài đặt thư viện Redux Toolkit và Axios:
+
 // bash
 // Copy code
-//     npm install @reduxjs/toolkit react-redux
-// Tạo file userSlice.js trong thư mục redux/slices:
-// javascript
+// npm install @reduxjs/toolkit react-redux axios
+// Tạo file userSlice.ts trong thư mục redux/slices:
+
+// typescript
 // Copy code
-// redux/slices/userSlice.js
-import { createSlice } from '@reduxjs/toolkit';
+// src/redux/slices/userSlice.ts
+import { createSlice, PayloadAction } from '@reduxjs/toolkit';
+
+interface User {
+  id: number;
+  password: string;
+  todos: string[];
+}
+
+const initialState: User = {
+  id: 0,
+  password: '',
+  todos: [],
+};
 
 const userSlice = createSlice({
-    name: 'user',
-    initialState: { id: 0, password: '', todos: [] },
-    reducers: {
-        setUser: (state, action) => {
-            return action.payload;
-        },
-        addTodo: (state, action) => {
-            state.todos.push(action.payload);
-        },
-        deleteTodo: (state, action) => {
-            state.todos = state.todos.filter((todo) => todo !== action.payload);
-        },
+  name: 'user',
+  initialState,
+  reducers: {
+    setUser: (state, action: PayloadAction<User>) => {
+      return action.payload;
     },
+    addTodo: (state, action: PayloadAction<string>) => {
+      state.todos.push(action.payload);
+    },
+    deleteTodo: (state, action: PayloadAction<number>) => {
+      state.todos.splice(action.payload, 1);
+    },
+  },
 });
 
 export const { setUser, addTodo, deleteTodo } = userSlice.actions;
 export default userSlice.reducer;
-// Sửa đổi file userReducer.js trong thư mục redux/reducers:
-// javascript
-// Copy code
-// redux/reducers/userReducer.js
-import { combineReducers } from 'redux';
-import userReducer from '../slices/userSlice';
+// Tạo Redux Store:
+// Tạo file store.ts trong thư mục redux:
 
-const rootReducer = combineReducers({
-    user: userReducer,
-});
-
-export default rootReducer;
-// Sửa đổi file store.js trong thư mục redux:
-// javascript
+// typescript
 // Copy code
-// redux/store.js
+// src/redux/store.ts
 import { configureStore } from '@reduxjs/toolkit';
-import rootReducer from './reducers/userReducer';
+import userReducer from './slices/userSlice';
 
 const store = configureStore({
-    reducer: rootReducer,
+  reducer: {
+    user: userReducer,
+  },
 });
 
+export type RootState = ReturnType<typeof store.getState>;
+export type AppDispatch = typeof store.dispatch;
+
 export default store;
-// Sửa đổi file Screen_01.js để sử dụng Redux Toolkit:
-// javascript
+// Tạo màn hình Screen_02:
+// Tạo file Screen_02.tsx trong thư mục screens:
+
+// typescript
 // Copy code
-// Screen_01.js
+// src/screens/Screen_02.tsx
 import React, { useState } from 'react';
-import { View, Text, TextInput, Button, Alert } from 'react-native';
-import { useDispatch } from 'react-redux';
-import { setUser } from './redux/slices/userSlice';
-import { loginUser } from './api';
+import { View, Text, FlatList, TextInput, Button } from 'react-native';
+import { useDispatch, useSelector } from 'react-redux';
+import { addTodo, deleteTodo } from '../redux/slices/userSlice';
+import { RootState } from '../redux/store';
 
-const Screen_01 = ({ navigation }) => {
-    const dispatch = useDispatch();
+const Screen_02: React.FC = () => {
+  const dispatch = useDispatch();
+  const user = useSelector((state: RootState) => state.user);
+  const [newTodo, setNewTodo] = useState('');
 
-    const [email, setEmail] = useState('');
-    const [password, setPassword] = useState('');
+  const handleAddTodo = () => {
+    if (newTodo.trim() !== '') {
+      dispatch(addTodo(newTodo));
+      setNewTodo('');
+    }
+  };
 
-    const handleLogin = async () => {
-        try {
-            const user = await loginUser(email, password);
+  const handleDeleteTodo = (index: number) => {
+    dispatch(deleteTodo(index));
+  };
 
-            if (user) {
-                dispatch(setUser(user)); // Lưu thông tin user vào Redux store
-                Alert.alert('Login successful!', 'Redirecting to Screen 02...');
-                // Thêm logic chuyển màn hình tại đây
-                // Ví dụ: navigation.navigate('Screen_02');
-            } else {
-                Alert.alert('Invalid email or password', 'Please try again.');
-            }
-        } catch (error) {
-            console.error('Error during login:', error);
-        }
-    };
-
-    return (
-        <View>
-            <Text>Login</Text>
-            <TextInput
-                placeholder="Enter your email"
-                value={email}
-                onChangeText={(text) => setEmail(text)}
-            />
-            <TextInput
-                placeholder="Enter your password"
-                secureTextEntry
-                value={password}
-                onChangeText={(text) => setPassword(text)}
-            />
-            <Button title="Continue" onPress={handleLogin} />
-        </View>
-    );
-};
-
-export default Screen_01;
-// Tạo file Screen_02.js để hiển thị thông tin và thêm/xóa công việc:
-// javascript
-// Copy code
-// Screen_02.js
-import React, { useState } from 'react';
-import { View, Text, FlatList, TextInput, Button, Alert } from 'react-native';
-import { useSelector, useDispatch } from 'react-redux';
-import { addTodo, deleteTodo } from './redux/slices/userSlice';
-
-const Screen_02 = () => {
-    const user = useSelector((state) => state.user);
-    const dispatch = useDispatch();
-    const [newTodo, setNewTodo] = useState('');
-
-    const handleAddTodo = () => {
-        if (newTodo.trim() !== '') {
-            dispatch(addTodo(newTodo));
-            setNewTodo('');
-        } else {
-            Alert.alert('Error', 'Please enter a valid todo.');
-        }
-    };
-
-    const handleDeleteTodo = (todo) => {
-        dispatch(deleteTodo(todo));
-    };
-
-    return (
-        <View>
-            <Text>User ID: {user.id}</Text>
-            <Text>Password: {user.password}</Text>
-            <Text>Todos:</Text>
-            <FlatList
-                data={user.todos}
-                keyExtractor={(item, index) => index.toString()}
-                renderItem={({ item }) => (
-                    <View>
-                        <Text>{item}</Text>
-                        <Button
-                            title="Delete"
-                            onPress={() => handleDeleteTodo(item)}
-                        />
-                    </View>
-                )}
-            />
-            <TextInput
-                placeholder="Add a new todo"
-                value={newTodo}
-                onChangeText={(text) => setNewTodo(text)}
-            />
-            <Button title="Add" onPress={handleAddTodo} />
-        </View>
-    );
+  return (
+    <View>
+      <Text>User ID: {user.id}</Text>
+      <Text>Password: {user.password}</Text>
+      <Text>Todos:</Text>
+      <FlatList
+        data={user.todos}
+        keyExtractor={(item, index) => index.toString()}
+        renderItem={({ item, index }) => (
+          <View>
+            <Text>{item}</Text>
+            <Button title="Delete" onPress={() => handleDeleteTodo(index)} />
+          </View>
+        )}
+      />
+      <TextInput
+        placeholder="Add a new todo"
+        value={newTodo}
+        onChangeText={text => setNewTodo(text)}
+      />
+      <Button title="Add" onPress={handleAddTodo} />
+    </View>
+  );
 };
 
 export default Screen_02;
-// Sửa đổi file App.js để thêm màn hình Screen_02:
-// javascript
+// Integrate with Screen_01 and App:
+// Cập nhật Screen_01.tsx và App.tsx để thực hiện điều hướng giữa Screen_01 và Screen_02.
+
+// typescript
 // Copy code
-// App.js
+// src/screens/Screen_01.tsx
 import React from 'react';
-import { Provider } from 'react-redux';
-import { createStore, combineReducers } from 'redux';
+import { View, Text, Button } from 'react-native';
+import { NavigationProp } from '@react-navigation/native';
+import { RootStackParamList } from '../types/navigation';
+
+interface Screen01Props {
+  navigation: NavigationProp<RootStackParamList, 'Screen_01'>;
+}
+
+const Screen_01: React.FC<Screen01Props> = ({ navigation }) => {
+  return (
+    <View>
+      <Text>Login</Text>
+      {/* Add your login logic here */}
+      <Button
+        title="Continue"
+        onPress={() => {
+          // Assume successful login
+          navigation.navigate('Screen_02');
+        }}
+      />
+    </View>
+  );
+};
+
+export default Screen_01;
+typescript
+Copy code
+// src/App.tsx
+import React from 'react';
 import { NavigationContainer } from '@react-navigation/native';
 import { createStackNavigator } from '@react-navigation/stack';
-import Screen_01 from './Screen_01';
-import Screen_02 from './Screen_02';
-import userReducer from './redux/reducers/userReducer';
+import { Provider } from 'react-redux';
+import Screen_01 from './screens/Screen_01';
+import Screen_02 from './screens/Screen_02';
+import store from './redux/store';
+import { RootStackParamList } from './types/navigation';
 
-const rootReducer = combineReducers({
-    user: userReducer,
-});
+const Stack = createStackNavigator<RootStackParamList>();
 
-const store = createStore(rootReducer);
-
-const Stack = createStackNavigator();
-
-const App = () => {
-    return (
-        <Provider store={store}>
-            <NavigationContainer>
-                <Stack.Navigator initialRouteName="Screen_01">
-                    <Stack.Screen name="Screen_01" component={Screen_01} />
-                    <Stack.Screen name="Screen_02" component={Screen_02} />
-                </Stack.Navigator>
-            </NavigationContainer>
-        </Provider>
-    );
+const App: React.FC = () => {
+  return (
+    <Provider store={store}>
+      <NavigationContainer>
+        <Stack.Navigator initialRouteName="Screen_01">
+          <Stack.Screen name="Screen_01" component={Screen_01} />
+          <Stack.Screen name="Screen_02" component={Screen_02} />
+        </Stack.Navigator>
+      </NavigationContainer>
+    </Provider>
+  );
 };
 
 export default App;
-// Lưu ý rằng trong ví dụ này, các công việc được lưu trữ trong mảng todos của Redux store. Bạn có thể tùy chỉnh và mở rộng logic để đáp ứng đúng với yêu cầu cụ thể của ứng dụng của mình.
+// Định nghĩa kiểu cho React Navigation:
+// Tạo file types/navigation.ts để định nghĩa kiểu cho React Navigation.
+
+// typescript
+// Copy code
+// src/types/navigation.ts
+import { StackNavigationProp } from '@react-navigation/stack';
+
+export type RootStackParamList = {
+  Screen_01: undefined;
+  Screen_02: undefined;
+};
+
+export type Screen_01NavigationProp = StackNavigationProp<RootStackParamList, 'Screen_01'>;
+// Chắc chắn rằng bạn đã cài đặt TypeScript và Expo trước khi thực hiện các bước trên.
