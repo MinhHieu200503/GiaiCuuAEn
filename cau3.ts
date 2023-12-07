@@ -1,146 +1,108 @@
-// cập nhật Redux Slice (todoSlice.js):
-// Thêm một action để cập nhật công việc trên API:
+// Để cập nhật thông tin lên API, bạn có thể sử dụng thư viện axios hoặc các phương thức khác để thực hiện các yêu cầu HTTP. Dưới đây là một ví dụ cách sử dụng Redux Toolkit và Axios để tạo nút "Update" và cập nhật thông tin lên API.
 
-
-// slices/todoSlice.js
+// Cài đặt thư viện Axios:
+// bash
+// Copy code
+//      npm install axios
+// Sửa đổi file userSlice.js trong thư mục redux/slices:
+// javascript
+// Copy code
+// redux/slices/userSlice.js
 import { createSlice } from '@reduxjs/toolkit';
+import axios from 'axios';
 
-const todoSlice = createSlice({
-  name: 'todos',
-  initialState: [],
-  reducers: {
-    setTodos: (state, action) => {
-      return action.payload;
+const userSlice = createSlice({
+    name: 'user',
+    initialState: { id: 0, password: '', todos: [] },
+    reducers: {
+        setUser: (state, action) => {
+            return action.payload;
+        },
+        addTodo: (state, action) => {
+            state.todos.push(action.payload);
+        },
+        deleteTodo: (state, action) => {
+            state.todos = state.todos.filter((todo) => todo !== action.payload);
+        },
+        updateUserInfo: async (state, action) => {
+            try {
+                const response = await axios.put(
+                    `https://6145c71638339400175fc557.mockapi.io/users/${state.id}`,
+                    {
+                        password: state.password,
+                        todos: state.todos,
+                    }
+                );
+
+                console.log('Update success:', response.data);
+            } catch (error) {
+                console.error('Error during update:', error);
+            }
+        },
     },
-    addTodo: (state, action) => {
-      state.push(action.payload);
-    },
-    deleteTodo: (state, action) => {
-      return state.filter(todo => todo.id !== action.payload);
-    },
-    updateTodo: (state, action) => {
-      const { id, updatedTodo } = action.payload;
-      const index = state.findIndex(todo => todo.id === id);
-      if (index !== -1) {
-        state[index] = updatedTodo;
-      }
-    },
-    updateTodoOnApi: (state, action) => {
-      // Thực hiện cập nhật công việc trên API ở đây
-    },
-  },
 });
 
-export const { setTodos, addTodo, deleteTodo, updateTodo, updateTodoOnApi } = todoSlice.actions;
-export default todoSlice.reducer;
-// Tạo một Redux Thunk để xử lý cập nhật API:
-// Redux Toolkit cho phép sử dụng Redux Thunk để thực hiện các thao tác bất đồng bộ. Tạo một file mới để chứa các Redux Thunk:
+export const { setUser, addTodo, deleteTodo, updateUserInfo } =
+    userSlice.actions;
+export default userSlice.reducer;
+// Sửa đổi file Screen_02.js để thêm nút "Update":
+// javascript
+// Copy code
+// Screen_02.js
+import React, { useState } from 'react';
+import { View, Text, FlatList, TextInput, Button, Alert } from 'react-native';
+import { useSelector, useDispatch } from 'react-redux';
+import { addTodo, deleteTodo, updateUserInfo } from './redux/slices/userSlice';
 
+const Screen_02 = () => {
+    const user = useSelector((state) => state.user);
+    const dispatch = useDispatch();
+    const [newTodo, setNewTodo] = useState('');
 
-// thunks/todoThunks.js
-import { updateTodoOnApi } from '../slices/todoSlice';
+    const handleAddTodo = () => {
+        if (newTodo.trim() !== '') {
+            dispatch(addTodo(newTodo));
+            setNewTodo('');
+        } else {
+            Alert.alert('Error', 'Please enter a valid todo.');
+        }
+    };
 
-export const updateTodoApi = (id, updatedTodo) => {
-  return async (dispatch) => {
-    try {
-      // Thực hiện cập nhật công việc trên API ở đây
-      // Ví dụ: fetch hoặc sử dụng các thư viện khác thay thế cho Axios
-      // Có thể sử dụng hàm window.fetch hoặc các thư viện như 'axios' hoặc 'superagent'
+    const handleDeleteTodo = (todo) => {
+        dispatch(deleteTodo(todo));
+    };
 
-      // Ví dụ sử dụng window.fetch:
-      const response = await fetch(`http://localhost:3000/api/todos/${id}`, {
-        method: 'PUT',
-        headers: {
-          'Content-Type': 'application/json',
-        },
-        body: JSON.stringify(updatedTodo),
-      });
+    const handleUpdateUserInfo = () => {
+        dispatch(updateUserInfo());
+    };
 
-      if (!response.ok) {
-        throw new Error('Update failed');
-      }
-
-      // Cập nhật trạng thái Redux sau khi cập nhật thành công trên API
-      dispatch(updateTodoOnApi({ id, updatedTodo }));
-    } catch (error) {
-      console.error('Error updating todo on API:', error);
-    }
-  };
-};
-Sử dụng Redux Thunk trong Component TodoList (TodoList.js):
-jsx
-Copy code
-// TodoList.js
-import React, { useEffect, useState } from 'react';
-import { View, Text, FlatList, TextInput, Button } from 'react-native';
-import { useDispatch, useSelector } from 'react-redux';
-import { setTodos, addTodo, deleteTodo, updateTodo } from './slices/todoSlice';
-import { updateTodoApi } from './thunks/todoThunks';
-
-const TodoList = () => {
-  const dispatch = useDispatch();
-  const todos = useSelector(state => state.todos);
-
-  const [newTodo, setNewTodo] = useState('');
-  const [editTodo, setEditTodo] = useState({ id: null, text: '' });
-
-  useEffect(() => {
-    // Fetch data from the API
-    fetch('http://localhost:3000/api/todos')
-      .then(response => response.json())
-      .then(data => dispatch(setTodos(data)))
-      .catch(error => console.error('Error fetching data:', error));
-  }, [dispatch]);
-
-  const handleAddTodo = () => {
-    const todo = { id: Date.now(), todojob: newTodo };
-    dispatch(addTodo(todo));
-    setNewTodo('');
-  };
-
-  const handleDeleteTodo = (id) => {
-    dispatch(deleteTodo(id));
-  };
-
-  const handleEditTodo = () => {
-    dispatch(updateTodo({ id: editTodo.id, updatedTodo: { id: editTodo.id, todojob: editTodo.text } }));
-    dispatch(updateTodoApi(editTodo.id, { id: editTodo.id, todojob: editTodo.text }));
-    setEditTodo({ id: null, text: '' });
-  };
-
-  return (
-    <View>
-      <Text>Todo List:</Text>
-      <TextInput
-        placeholder="New Todo"
-        value={newTodo}
-        onChangeText={(text) => setNewTodo(text)}
-      />
-      <Button title="Add" onPress={handleAddTodo} />
-      <FlatList
-        data={todos}
-        keyExtractor={(item) => item.id.toString()}
-        renderItem={({ item }) => (
-          <View>
-            <Text>{item.todojob}</Text>
-            <Button title="Edit" onPress={() => setEditTodo({ id: item.id, text: item.todojob })} />
-            <Button title="Delete" onPress={() => handleDeleteTodo(item.id)} />
-          </View>
-        )}
-      />
-      {editTodo.id !== null && (
+    return (
         <View>
-          <TextInput
-            placeholder="Edit Todo"
-            value={editTodo.text}
-            onChangeText={(text) => setEditTodo({ ...editTodo, text })}
-          />
-          <Button title="Save" onPress={handleEditTodo} />
+            <Text>User ID: {user.id}</Text>
+            <Text>Password: {user.password}</Text>
+            <Text>Todos:</Text>
+            <FlatList
+                data={user.todos}
+                keyExtractor={(item, index) => index.toString()}
+                renderItem={({ item }) => (
+                    <View>
+                        <Text>{item}</Text>
+                        <Button
+                            title="Delete"
+                            onPress={() => handleDeleteTodo(item)}
+                        />
+                    </View>
+                )}
+            />
+            <TextInput
+                placeholder="Add a new todo"
+                value={newTodo}
+                onChangeText={(text) => setNewTodo(text)}
+            />
+            <Button title="Add" onPress={handleAddTodo} />
+            <Button title="Update" onPress={handleUpdateUserInfo} />
         </View>
-      )}
-    </View>
-  );
+    );
 };
 
-export default TodoList;
-Trong đoạn mã trên, chúng ta đã thêm một Redux Thunk updateTodoApi để xử lý cập nhật công việc trên API. Khi người dùng nhấn nút "Save" để chỉnh sửa công việc, chúng ta gọi cả hai action Redux và Redux Thunk để cập nhật trạng thái của ứng dụng và cập nhật API.
+export default Screen_02;
